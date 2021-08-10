@@ -88,7 +88,7 @@ imgs.shape, label, torch.min(imgs), torch.max(imgs)
 # Create DataLoaders
 from torch.utils.data import DataLoader
 
-batch_size = 8
+batch_size = 4
 train_dl = torch.utils.data.DataLoader(train_ds, batch_size=batch_size,
                                        shuffle=True, num_workers=0)
 test_dl = torch.utils.data.DataLoader(test_ds, batch_size=batch_size,
@@ -140,11 +140,8 @@ net = Net()
 # Define Loss Function & Optimizer
 import torch.optim as optim
 
-num_epochs = 100
-current_lr = 0.0001
-
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=current_lr, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 # Check GPU Availability
 print(f"Is CUDA supported by this system? {torch.cuda.is_available()}")
@@ -157,79 +154,41 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 net = net.to(device)
 
 # Save weights
-path = './models/weights_mynet_0808_2.pt'
-torch.save(net.state_dict(), path)
+path = './models/net39epoch_0806.pth'
+# torch.save(net.state_dict(), path)
 
-loss_history = {
-    "train": [],
-    "val": [],
-}
-metric_history = {
-    "train": [],
-    "val": [],
-}
+# # Training
+# net.train()
+# epochs = 100
+# for epoch in range(epochs):
+#     print(f"Running {epoch+1}th epoch...")
+#     running_loss = 0.0
+#     for i, data in enumerate(train_dl, 0):
+#         print( f'[Epoch:%3d, Batch Number:%3d/%3d, Batch Size:%3d]' % (epoch+1, i+1, len(train_dl), batch_size), end="\r")
+#         # get the inputs; data is a list of [inputs, labels]
+#         inputs, labels = data
+#         inputs, labels = inputs.to(device), labels.to(device)
+        
+#         # zero the parameter gradients
+#         optimizer.zero_grad()
+        
+#         # forward + backward + optimize
+#         outputs = net(inputs)
+#         loss = criterion(outputs, labels)
+#         loss.backward()
+#         optimizer.step()
+        
+#         # print statistics
+#         running_loss += loss.item()
+#         # if i % 10 == 9:
+#         #     print('[%d, %4d] loss: %.6f' %
+#         #           (epoch + 1, i + 1, running_loss / 2000))
+#     print()
+#     print( f'[Epoch:%3d/%3d] Training Loss:%.6f' % (epoch+1, epochs, running_loss/len(train_ids)) )
+# print('Finished Training')
 
-# Training
-from tqdm import tqdm
-for epoch in range(num_epochs):
-    current_lr = utils.get_lr(optimizer)
-    print('Epoch {}/{}, current lr={}'.format(epoch, num_epochs-1, current_lr))
-
-    # TRAINING
-    net.train()
-    running_loss = 0.0
-    running_metric = 0.0
-    len_data = len(train_dl.dataset)
-    for data in tqdm(train_dl):
-        # calculate output and loss
-        inputs, labels = data
-        inputs, labels = inputs.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
-        # backprop and update weight
-        if optimizer is not None:
-            loss.backward()
-            optimizer.step()
-        # add batch metric and batch loss to sum
-        metric_b = utils.metrics_batch(outputs, labels)
-        running_loss += loss.item()
-        if metric_b is not None:
-            running_metric += metric_b
-    # calculate epoch loss and epoch metric
-    train_loss = running_loss / float(len_data)
-    train_metric = running_metric / float(len_data)
-    loss_history["train"].append(train_loss)
-    metric_history["train"].append(train_metric)
-
-    # EVAULATING (TESTING)
-    net.eval()
-    running_loss = 0.0
-    running_metric = 0.0
-    len_data = len(test_dl.dataset)
-    with torch.no_grad():
-        for data in tqdm(test_dl):
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            metric_b = utils.metrics_batch(outputs, labels)
-            running_loss += loss.item()
-            if metric_b is not None:
-                running_metric += metric_b
-        test_loss = running_loss / float(len_data)
-        test_metric = running_metric / float(len_data)
-        loss_history["val"].append(test_loss)
-        metric_history["val"].append(test_metric)
-    print("train loss: %.6f, test loss: %.6f, accuracy: %.2f" % (train_loss, test_loss, 100*test_metric))
-    print("-"*10)
-    torch.save(net.state_dict(), path)
-print('Finished Training')
-print("Loss Histogram = ", loss_history)
-print("Metric Histogram = ", metric_history)
-
-# net.eval()
-# net.load_state_dict(torch.load(path))
+net.eval()
+net.load_state_dict(torch.load(path))
 # correct = 0
 # total = 0
 # running_loss = 0.0
@@ -254,31 +213,31 @@ print("Metric Histogram = ", metric_history)
 # print( f'Testing Loss:%.6f' % (running_loss/len(test_ids)) )
 # print( f'Testing Accuracy: %f' % (correct/total))
 
-# # accuracy for each class
-# # count predictions for each class
-# import numpy as np
-# correct_pred = np.zeros((num_classes))
-# total_pred = np.zeros((num_classes))
+# accuracy for each class
+# count predictions for each class
+import numpy as np
+correct_pred = np.zeros((num_classes))
+total_pred = np.zeros((num_classes))
 
-# # no gradients needed
-# with torch.no_grad():
-#     for i, data in enumerate(test_dl):
-#         inputs, labels = data
-#         inputs, labels = inputs.to(device), labels.to(device)
-#         outputs = net(inputs)
-#         _, predictions = torch.max(outputs.data,1)
-#         print(labels)
-#         print(predictions)
-#         # collect the correct predictions for each class
-#         for label, prediction in zip(labels, predictions):
-#             if label == prediction:
-#                 correct_pred[label] += 1
-#             total_pred[label] += 1
-#             print(correct_pred)
-#             print(total_pred)
-#             print('='*50)
+# no gradients needed
+with torch.no_grad():
+    for i, data in enumerate(test_dl):
+        inputs, labels = data
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = net(inputs)
+        _, predictions = torch.max(outputs.data,1)
+        print(labels)
+        print(predictions)
+        # collect the correct predictions for each class
+        for label, prediction in zip(labels, predictions):
+            if label == prediction:
+                correct_pred[label] += 1
+            total_pred[label] += 1
+            print(correct_pred)
+            print(total_pred)
+            print('='*50)
 
-# # print accuracy for each class
-# for i, correct_num in enumerate(correct_pred):
-#     accuracy = 100 * float(correct_num) / total_pred[i]
-#     print("Accuracy for class {:1d} is : {:.1f} %" .format(i, accuracy))
+# print accuracy for each class
+for i, correct_num in enumerate(correct_pred):
+    accuracy = 100 * float(correct_num) / total_pred[i]
+    print("Accuracy for class {:1d} is : {:.1f} %" .format(i, accuracy))
